@@ -12,6 +12,7 @@ import android.widget.TextView;
 import com.byted.camp.todolist.NoteOperator;
 import com.byted.camp.todolist.R;
 import com.byted.camp.todolist.beans.Note;
+import com.byted.camp.todolist.beans.Priority;
 import com.byted.camp.todolist.beans.State;
 
 import java.text.SimpleDateFormat;
@@ -29,6 +30,7 @@ public class NoteViewHolder extends RecyclerView.ViewHolder {
 
     private final NoteOperator operator;
 
+    private View itemView;
     private CheckBox checkBox;
     private TextView contentText;
     private TextView dateText;
@@ -38,6 +40,7 @@ public class NoteViewHolder extends RecyclerView.ViewHolder {
         super(itemView);
         this.operator = operator;
 
+        this.itemView = itemView;
         checkBox = itemView.findViewById(R.id.checkbox);
         contentText = itemView.findViewById(R.id.text_content);
         dateText = itemView.findViewById(R.id.text_date);
@@ -71,5 +74,6 @@ public class NoteViewHolder extends RecyclerView.ViewHolder {
             contentText.setTextColor(Color.BLACK);
             contentText.setPaintFlags(contentText.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
         }
+        itemView.setBackgroundColor(Priority.toColor(note.getPriority()));
     }
 }

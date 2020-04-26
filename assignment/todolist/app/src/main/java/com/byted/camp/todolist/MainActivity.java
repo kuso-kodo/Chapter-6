@@ -1,7 +1,10 @@
 package com.byted.camp.todolist;
 
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
@@ -15,16 +18,26 @@ import android.view.MenuItem;
 import android.view.View;
 
 import com.byted.camp.todolist.beans.Note;
+import com.byted.camp.todolist.beans.Priority;
+import com.byted.camp.todolist.beans.State;
+import com.byted.camp.todolist.db.TodoContract;
+import com.byted.camp.todolist.db.TodoDbHelper;
 import com.byted.camp.todolist.operation.activity.DatabaseActivity;
 import com.byted.camp.todolist.operation.activity.DebugActivity;
 import com.byted.camp.todolist.operation.activity.SettingActivity;
 import com.byted.camp.todolist.ui.NoteListAdapter;
 
+import java.util.Collections;
+import java.util.Date;
+import java.util.LinkedList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_ADD = 1002;
+
+    private SQLiteDatabase db;
+    private TodoDbHelper dbHelper;
 
     private RecyclerView recyclerView;
     private NoteListAdapter notesAdapter;
@@ -35,6 +48,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
+
+        this.dbHelper = new TodoDbHelper(this);
+        this.db = this.dbHelper.getWritableDatabase();
 
         FloatingActionButton fab = findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -70,6 +86,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        db.close();
+        dbHelper.close();
     }
 
     @Override
@@ -108,16 +126,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private List<Note> loadNotesFromDatabase() {
-        // TODO 从数据库中查询数据，并转换成 JavaBeans
-        return null;
+        if(db == null) {
+            return Collections.emptyList();
+        }
+        LinkedList<Note> linkedList = new LinkedList<>();
+
+        try (Cursor cursor = db.query("note", null, null,
+                null, null, null, "priority DESC")) {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(cursor.getColumnIndex(TodoContract.TodoNote._ID));
+                String content = cursor.getString(cursor.getColumnIndex(TodoContract.TodoNote.COLUMN_CONTENT));
+                long date = cursor.getLong(cursor.getColumnIndex(TodoContract.TodoNote.COLUMN_DATE));
+                int state = cursor.getInt(cursor.getColumnIndex(TodoContract.TodoNote.COLUMN_STATE));
+                int priority = cursor.getInt(cursor.getColumnIndex(TodoContract.TodoNote.COLUMN_PRIORITY));
+                Note note = new Note(id);
+                note.setContent(content);
+                note.setDate(new Date(date));
+                note.setState(State.from(state));
+                note.setPriority(Priority.from(priority));
+                linkedList.add(note);
+            }
+            return linkedList;
+        }
     }
 
     private void deleteNote(Note note) {
-        // TODO 删除数据
+        if (db == null)
+            return;
+        if (db.delete("note", "_id=?", new String[] { String.valueOf(note.id) }) > 0)
+            this.notesAdapter.refresh(loadNotesFromDatabase());
     }
 
     private void updateNode(Note note) {
-        // 更新数据
+        if (db == null)
+            return;
+        ContentValues contentValues = new ContentValues();
+        contentValues.put("state", note.getState().intValue);
+        if (db.update("note", contentValues, "_id=?", new String[] { String.valueOf(note.id) }) > 0)
+            this.notesAdapter.refresh(loadNotesFromDatabase());
     }
 
 }
